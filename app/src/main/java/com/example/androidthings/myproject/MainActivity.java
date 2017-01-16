@@ -26,6 +26,7 @@ import com.google.android.things.pio.PeripheralManagerService;
 
 import java.io.IOError;
 import java.io.IOException;
+import static android.os.SystemClock.sleep;
 
 /**
  * Skeleton of the main Android Things activity. Implement your device's logic
@@ -75,6 +76,9 @@ public class MainActivity extends Activity {
     private Gpio RD;    //IO16
     private Gpio CE;    //IO17
     private PeripheralManagerService service;
+    private loopRunner looper;
+    private int systemBrightnes = 100;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,22 +89,41 @@ public class MainActivity extends Activity {
         try {
             setupGPIOS();
             //WRITE_Character_Ram(1,23);
-            selfTest();
+            looper = new loopRunner(this);
+            looper.run();
 
         } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
 
     private void selfTest() throws IOException,InterruptedException{
-        Control_Register(100,false,false,true,false);
-        wait(2000);
-        Control_Register(100,false,false,false,true);
         Control_Register(100,false,false,false,false);
+        sleep(1);
+        Log.d(TAG, "selfTest tarted");
+        Control_Register(100,false,false,true,false);
+        sleep(5000);
+        Log.d(TAG, "selfTest finided");
+        clearDisplay();
+
+        WRITE_Character_Ram(1,23);
+        WRITE_Character_Ram(2,23);
+        WRITE_Character_Ram(3,23);
+        WRITE_Character_Ram(4,23);
+        WRITE_Character_Ram(5,23);
+        WRITE_Character_Ram(6,23);
+        WRITE_Character_Ram(7,23);
+        WRITE_Character_Ram(8,23);
+        sleep(5000);
+        clearDisplay();
     }
-    
+
+    private void clearDisplay() throws IOException, InterruptedException {
+        Control_Register(systemBrightnes,false,false,false,true);
+        sleep(1);
+        Control_Register(systemBrightnes,false,false,false,false);
+        sleep(1);
+    }
     
     private void setupGPIOS()throws IOException{
 
@@ -131,6 +154,9 @@ public class MainActivity extends Activity {
             RD.setValue(false);
     }
 
+    boolean isSet(byte value, int bit){
+        return (value&(1<<bit))==0;
+    }
 
 
     private void  WRITE_Character_Ram(int posation,int CODE, boolean... UDCFlag) throws IOException, InterruptedException {
@@ -138,39 +164,44 @@ public class MainActivity extends Activity {
 
         A4.setValue(false);
         A3.setValue(false);
-        setCharAddress(posation);
+        setCharAddress(posation-1);
 
         if(UDC){
             D7.setValue(false);
         }else {
             D7.setValue(true);
         }
+
+        byte code = (byte)CODE;
+
         // D3 D2 D1 D0
         // 1  0  1  0 Row A
-        D0.setValue(true);
-        D1.setValue(false);
-        D2.setValue(true);
-        D3.setValue(false);
+        D0.setValue(isSet(code,0));
+        D1.setValue(isSet(code,1));
+        D2.setValue(isSet(code,2));
+        D3.setValue(isSet(code,3));
         //D6 D5 D4
         //0  1  0 COLUMN 2
-        D4.setValue(true);
-        D5.setValue(false);
-        D6.setValue(true);
+
+        D4.setValue(isSet(code,4));
+        D5.setValue(isSet(code,5));
+        D6.setValue(isSet(code,6));
 
         writeToDisplay();
 
     }
 
     private void writeToDisplay() throws IOException, InterruptedException {
+        //Log.d(TAG, "writeToDisplay");
         CE.setValue(true);
-        wait(1);
+        sleep(1);
         WR.setValue(true);
         RD.setValue(false);
-        wait(1);
+        sleep(1);
         WR.setValue(false);
-        wait(1);
+        sleep(1);
         CE.setValue(false);
-        wait(1);
+        sleep(1);
 
         CE.setValue(false);
         WR.setValue(false);
@@ -178,54 +209,19 @@ public class MainActivity extends Activity {
     }
 
     private void setCharAddress(int character_address)throws IOException {
-        switch (character_address){
-            case 1:
-                A2.setValue(true);
-                A1.setValue(true);
-                A0.setValue(true);
-                break;
-            case 2:
-                A2.setValue(true);
-                A1.setValue(true);
-                A0.setValue(false);
-                break;
-            case 3:
-                A2.setValue(true);
-                A1.setValue(false);
-                A0.setValue(true);
-                break;
-            case 4:
-                A2.setValue(true);
-                A1.setValue(false);
-                A0.setValue(false);
-                break;
-            case 5:
-                A2.setValue(false);
-                A1.setValue(true);
-                A0.setValue(true);
-                break;
-            case 6:
-                A2.setValue(false);
-                A1.setValue(true);
-                A0.setValue(false);
-                break;
-            case 7:
-                A2.setValue(false);
-                A1.setValue(false);
-                A0.setValue(true);
-                break;
-            case 8:
-                A2.setValue(false);
-                A1.setValue(false);
-                A0.setValue(false);
-                break;
-            default:
-                throw new IOError(new Throwable("Notfound"));
-        }
+        A0.setValue(isSet((byte)character_address,0));
+        A1.setValue(isSet((byte)character_address,1));
+        A2.setValue(isSet((byte)character_address,2));
     }
 
 
     private void set_BRIGHTNESS(int BRIGHTNESS)throws IOException {
+
+        byte brit = (byte)((BRIGHTNESS/100)*8);
+        D0.setValue(!isSet((byte)brit,0));
+        D1.setValue(!isSet((byte)brit,1));
+        D2.setValue(!isSet((byte)brit,2));
+        /*
         if(BRIGHTNESS>90) {                             //1000%
                 D2.setValue(true);
                 D1.setValue(true);
@@ -259,6 +255,7 @@ public class MainActivity extends Activity {
                 D1.setValue(false);
                 D0.setValue(false);
         }
+        */
     }
 
     private void  WRITE_User_Defined_Character(int CHARACTER_ADDRESS,int CODE,int ROW_SELECT,int DOT_DATA)throws IOException{
@@ -327,7 +324,7 @@ public class MainActivity extends Activity {
         with“1”s. The UDC RAM, UDC Address Register and the remainder
         of the Control Word are unaffected.
          */
-        D6.setValue(!Clear);
+        D7.setValue(!Clear);
 
         writeToDisplay();
     }
@@ -381,10 +378,28 @@ public class MainActivity extends Activity {
 
         @Override
         public void run() {
-
+            try {
+                activity.selfTest2();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
+    private void selfTest2() throws IOException, InterruptedException {
+
+        systemBrightnes = 4;
+        clearDisplay();
+        WRITE_Character_Ram(1,0);
+        WRITE_Character_Ram(2,0);
+        WRITE_Character_Ram(3,0);
+        WRITE_Character_Ram(4,'A');
+        WRITE_Character_Ram(5,'B');
+        WRITE_Character_Ram(6,'C');
+
+    }
 
 
     @Override
