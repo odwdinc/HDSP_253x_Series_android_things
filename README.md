@@ -8,7 +8,7 @@ Pre-requisites
 - Android Things compatible board
 - Android Studio 2.2+
 - Intel Edison
-- HDSP_253x
+- HDSP_253x http://www.digikey.com/scripts/DkSearch/dksus.dll?Detail&itemSeq=216493934&uq=636201916524276212
 
 Build and install
 =================
