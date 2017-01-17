@@ -1,7 +1,5 @@
-Android Things empty project template
+Android Things HDSP_253x Series Display 
 =====================================
-
-Use this empty project as a template for your Android Things project.
 
 
 Pre-requisites
@@ -9,7 +7,8 @@ Pre-requisites
 
 - Android Things compatible board
 - Android Studio 2.2+
-
+- Intel Edison
+- HDSP_253x
 
 Build and install
 =================
